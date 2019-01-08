@@ -1,1 +1,2 @@
 - [Interactive Lorenz Attractor](http://www.malinc.se/m/Lorenz.php)
+- [Numerical calculation of the Lyapunov exponents](http://personal.psu.edu/users/j/d/jdr234/phys527/chaos_Project/reportFiles/report/node8.html)
