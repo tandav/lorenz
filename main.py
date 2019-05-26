@@ -7,6 +7,8 @@ import time
 import signal
 import lorenz
 import util
+import lyapunov_exponents
+import lorenz_map
 
 
 signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -20,9 +22,11 @@ class AppGUI(QtGui.QWidget):
         self.steps_max = 10000
         self.steps = 1000
 
-        self.dt = 0.001
+        # self.dt = 0.001
+        self.dt = 0.01
         self.dt_min = 0.0001
         self.dt_max = 0.1
+        # self.dt_max = 1
         # self.dt = 1
 
         self.color = 1
@@ -139,7 +143,7 @@ class AppGUI(QtGui.QWidget):
         self.left_layout = QtGui.QVBoxLayout()
 
         self.steps_label = QtGui.QLabel()
-        self.dt_label = QtGui.QLabel()
+        self.dt_label = QtGui.QLabel(str(self.dt))
         self.s_label = QtGui.QLabel()
         self.r_label = QtGui.QLabel()
         self.b_label = QtGui.QLabel()
@@ -156,7 +160,8 @@ class AppGUI(QtGui.QWidget):
         self.steps_slider.setTickInterval(1000)
 
         self.dt_slider = QtGui.QSlider(orientation=QtCore.Qt.Horizontal)
-        self.dt_slider.setValue(self.dt)
+        print(int(util.fit(self.dt, self.dt_min, self.dt_max, 0, self.sliders_positions)))
+        self.dt_slider.setValue(int(util.fit(self.dt, self.dt_min, self.dt_max, 0, self.sliders_positions)))
         self.dt_slider.setRange(0, self.sliders_positions)
 
 
@@ -178,12 +183,15 @@ class AppGUI(QtGui.QWidget):
         self.b_slider.setValue(util.fit(self.b, self.b_min, self.b_max, 0, self.sliders_positions))
         # self.b_slider.setTickInterval(0.01)
 
+        self.color = (1, 0.7, 0.4, 1)
+        # self.color = np.array([
+        #     (1*x, 0.2+0.5*x, 0.1+0.3*x, 1)
+        #     for x in np.linspace(0, 1, self.steps)
+        # ])
 
-        self.color = np.array([
-            (1*x, 0.2+0.5*x, 0.1+0.3*x, 1)
-            for x in np.linspace(0, 1, self.steps)
-        ])
 
+        self.lambda_label = QtGui.QLabel()
+        self.calc_lambdas_button = QtGui.QPushButton('calc lambdas')
 
         # pos = self.p, size = np.ones(self.p.shape[0]) * 0.3, color = self.color, pxMode = False
 
@@ -205,6 +213,10 @@ class AppGUI(QtGui.QWidget):
         self.right_layout.addWidget(self.r_slider)
         self.right_layout.addWidget(self.b_label)
         self.right_layout.addWidget(self.b_slider)
+        self.right_layout.addWidget(self.lambda_label)
+        self.right_layout.addWidget(self.calc_lambdas_button)
+
+
 
         self.right_layout.addWidget(self.xplot)
         self.right_layout.addWidget(self.yplot)
@@ -228,6 +240,31 @@ class AppGUI(QtGui.QWidget):
         self.s_slider.valueChanged.connect(self.params_changed)
         self.r_slider.valueChanged.connect(self.params_changed)
         self.b_slider.valueChanged.connect(self.params_changed)
+        self.calc_lambdas_button.clicked.connect(self.calc_lambdas)
+
+    def calc_lambdas(self):
+        l = lyapunov_exponents.lyapunov_exponent(
+            lorenz_map.LorenzMap(
+                sigma = self.s,
+                rho   = self.r,
+                beta  = self.b
+            ),
+            self.p[0],
+            tol=0.1,
+            max_it = 100,
+        )
+
+        a1 = sum(l)
+        a2 = -(self.s + self.b + 1)
+        print(f'λ1 + λ2 + λ3 = {a1}')
+        print(f' -(σ + ß +1) = {a2}')
+        print(f'ABSDIFF = {abs(a1 - a2)}')
+
+        self.lambda_label.setText(f'''
+        λ1 = {l[0]}
+        λ2 = {l[1]}
+        λ3 = {l[2]}
+        ''')
 
     def steps_changed(self):
         self.steps = self.steps_slider.value()
@@ -235,10 +272,10 @@ class AppGUI(QtGui.QWidget):
         self.p[0] = np.array([1, 0, 0]) # initial conditions
         self.params_changed()
 
-        self.color = np.array([
-            (1*x, 0.2+0.5*x, 0.1+0.3*x, 1)
-            for x in np.linspace(0, 1, self.steps)
-        ])
+        # self.color = np.array([
+        #     (1*x, 0.2+0.5*x, 0.1+0.3*x, 1)
+        #     for x in np.linspace(0, 1, self.steps)
+        # ])
 
         # print(self.p.shape)
 
@@ -248,6 +285,7 @@ class AppGUI(QtGui.QWidget):
         self.s = util.fit(self.s_slider.value(), 0, self.sliders_positions, self.s_min, self.s_max)
         self.r = util.fit(self.r_slider.value(), 0, self.sliders_positions, self.r_min, self.r_max)
         self.b = util.fit(self.b_slider.value(), 0, self.sliders_positions, self.b_min, self.b_max)
+        print(self.dt_slider.value(), '$$$$$$')
         self.dt = util.fit(self.dt_slider.value(), 0, self.sliders_positions, self.dt_min, self.dt_max)
 
         lorenz.lorenz(self.p, self.s, self.r, self.b, self.steps, self.dt)
@@ -259,11 +297,12 @@ class AppGUI(QtGui.QWidget):
         self.ycurve.setData(self.p[:, 1], connect='finite')
         self.zcurve.setData(self.p[:, 2], connect='finite')
 
-        print(self.steps, self.dt, f'min = {np.min(self.p)} max = {np.max(self.p)}')
+        # print(self.steps, self.dt, f'min = {np.min(self.p)} max = {np.max(self.p)}')
         # self.xplot.setYRange(np.min(self.p[:, 0]), np.max(self.p[:, 0]))
         # self.yplot.setYRange(np.min(self.p[:, 1]), np.max(self.p[:, 0]))
         # self.zplot.setYRange(np.min(self.p[:, 2]), np.max(self.p[:, 1]))
 
+        print(self.dt, '<<<<')
         # print(self.steps)
         self.steps_label.setText(f'steps {self.steps}')
         self.dt_label.setText(f'dt {self.dt}')
