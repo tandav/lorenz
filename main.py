@@ -5,44 +5,11 @@ import numpy as np
 import sys
 import time
 import signal
-import numba
+import lorenz
+import util
+
 
 signal.signal(signal.SIGINT, signal.SIG_DFL)
-
-# @numba.jit(nopython=True, parallel=True, fastmath = True, nogil=True)
-@numba.jit(nopython=True, parallel=True, fastmath = True, nogil=True)
-def lorenz(p, s, r, b, steps, dt):
-    print(p.max(), p.mean())
-    if np.abs(p.max()) > 1.7976931348623157e+50 or np.abs(p.min()) < 1.7976931348623157e-50:
-        p[...] = 0
-        print(p.mean())
-    else:
-        # p[...] = np.random.random(p.shape)
-        for i in numba.prange(1, steps):
-            p[i, 0] = p[i - 1, 0] + s * (p[i - 1, 1] - p[i - 1, 0]) * dt
-            p[i, 1] = p[i - 1, 1] + (r * p[i - 1, 0] - p[i - 1, 1] - p[i - 1, 0] * p[i - 1, 2]) * dt
-            p[i, 2] = p[i - 1, 2] + (p[i - 1, 0] * p[i - 1, 1] - b * p[i - 1, 2]) * dt
-    # for i in numba.prange(1, steps):
-    #
-    #     _0 = p[i - 1, 0] + s * (p[i - 1, 1] - p[i - 1, 0]) * dt
-    #     _1 = p[i - 1, 1] + (r * p[i - 1, 0] - p[i - 1, 1] - p[i - 1, 0] * p[i - 1, 2]) * dt
-    #     _2 = p[i - 1, 2] + (p[i - 1, 0] * p[i - 1, 1] - b * p[i - 1, 2]) * dt
-    #
-    #     p[i, 0] = _0 if not np.isinf(_0) and not np.isinf(_0) else 0
-    #     p[i, 1] = _1 if not np.isinf(_1) and not np.isinf(_1) else 0
-    #     p[i, 2] = _1 if not np.isinf(_2) and not np.isinf(_2) else 0
-    # p[np.isnan(p)] = 0
-
-
-def fit(v, oldmin, oldmax, newmin=0.0, newmax=1.0):
-    """
-    Just a standard math fit/remap function
-    Example:
-    >>> fit(50, 0, 100, 0.0, 1.0)
-    0.5
-    """
-    return (v - oldmin) * (newmax - newmin) / (oldmax - oldmin) + newmin
-
 
 
 class AppGUI(QtGui.QWidget):
@@ -83,8 +50,8 @@ class AppGUI(QtGui.QWidget):
         self.init_ui()
         self.qt_connections()
 
-        lorenz(self.p, self.s, self.r, self.b, self.steps, self.dt)
-        lorenz(self.p, self.s_slider.value(), self.r_slider.value(), self.b_slider.value(), self.steps, self.dt)
+        lorenz.lorenz(self.p, self.s, self.r, self.b, self.steps, self.dt)
+        lorenz.lorenz(self.p, self.s_slider.value(), self.r_slider.value(), self.b_slider.value(), self.steps, self.dt)
 
 
         # self.timer = pg.QtCore.QTimer()
@@ -139,24 +106,28 @@ class AppGUI(QtGui.QWidget):
         self.w.addItem(self.main_scatter_plot)
 
 
+
+
         projections_height = 80
+        projections_width = 300
+
         self.xplot = pg.PlotWidget()
         self.xplot.showGrid(x=True, y=True, alpha=0.1)
         # self.xplot.enableAutoRange()
         self.xcurve = self.xplot.plot(pen='b')
-        self.xplot.setFixedSize(500, projections_height)
+        self.xplot.setFixedSize(projections_width, projections_height)
 
         self.yplot = pg.PlotWidget()
         self.yplot.showGrid(x=True, y=True, alpha=0.1)
         # self.yplot.enableAutoRange()
         self.ycurve = self.yplot.plot(pen='b')
-        self.yplot.setFixedSize(500, projections_height)
+        self.yplot.setFixedSize(projections_width, projections_height)
 
         self.zplot = pg.PlotWidget()
         self.zplot.showGrid(x=True, y=True, alpha=0.1)
         # self.zplot.enableAutoRange()
         self.zcurve = self.zplot.plot(pen='b')
-        self.zplot.setFixedSize(500, projections_height)
+        self.zplot.setFixedSize(projections_width, projections_height)
 
 
         self.projections_1d_layout = QtGui.QVBoxLayout()
@@ -192,19 +163,19 @@ class AppGUI(QtGui.QWidget):
 
         self.s_slider = QtGui.QSlider(orientation=QtCore.Qt.Horizontal)
         self.s_slider.setRange(0, self.sliders_positions)
-        self.s_slider.setValue(fit(self.s, self.s_min, self.s_max, 0, self.sliders_positions))
+        self.s_slider.setValue(util.fit(self.s, self.s_min, self.s_max, 0, self.sliders_positions))
         # self.s_slider.setTickPosition(QtGui.QSlider.TicksBelow)
         # self.s_slider.setTickInterval(0.1)
 
 
         self.r_slider = QtGui.QSlider(orientation=QtCore.Qt.Horizontal)
         self.r_slider.setRange(0, self.sliders_positions)
-        self.r_slider.setValue(fit(self.r, self.r_min, self.r_max, 0, self.sliders_positions))
+        self.r_slider.setValue(util.fit(self.r, self.r_min, self.r_max, 0, self.sliders_positions))
         # self.r_slider.setTickInterval(0.1)
 
         self.b_slider = QtGui.QSlider(orientation=QtCore.Qt.Horizontal)
         self.b_slider.setRange(0, self.sliders_positions)
-        self.b_slider.setValue(fit(self.b, self.b_min, self.b_max, 0, self.sliders_positions))
+        self.b_slider.setValue(util.fit(self.b, self.b_min, self.b_max, 0, self.sliders_positions))
         # self.b_slider.setTickInterval(0.01)
 
 
@@ -216,11 +187,13 @@ class AppGUI(QtGui.QWidget):
 
         # pos = self.p, size = np.ones(self.p.shape[0]) * 0.3, color = self.color, pxMode = False
 
-        self.steps_slider.setFixedWidth(300)
-        self.dt_slider.setFixedWidth(300)
-        self.s_slider.setFixedWidth(300)
-        self.r_slider.setFixedWidth(300)
-        self.b_slider.setFixedWidth(300)
+
+        sliders_width = 300
+        self.steps_slider.setFixedWidth(sliders_width)
+        self.dt_slider.setFixedWidth(sliders_width)
+        self.s_slider.setFixedWidth(sliders_width)
+        self.r_slider.setFixedWidth(sliders_width)
+        self.b_slider.setFixedWidth(sliders_width)
 
         self.right_layout.addWidget(self.steps_slider)
         self.right_layout.addWidget(self.steps_label)
@@ -267,30 +240,31 @@ class AppGUI(QtGui.QWidget):
             for x in np.linspace(0, 1, self.steps)
         ])
 
-        print(self.p.shape)
+        # print(self.p.shape)
 
     def params_changed(self):
-        print(self.steps, self.dt)
         # print(self.p.min(), self.p.max())
 
-        self.s = fit(self.s_slider.value(), 0, self.sliders_positions, self.s_min, self.s_max)
-        self.r = fit(self.r_slider.value(), 0, self.sliders_positions, self.r_min, self.r_max)
-        self.b = fit(self.b_slider.value(), 0, self.sliders_positions, self.b_min, self.b_max)
-        self.dt = fit(self.dt_slider.value(), 0, self.sliders_positions, self.dt_min, self.dt_max)
+        self.s = util.fit(self.s_slider.value(), 0, self.sliders_positions, self.s_min, self.s_max)
+        self.r = util.fit(self.r_slider.value(), 0, self.sliders_positions, self.r_min, self.r_max)
+        self.b = util.fit(self.b_slider.value(), 0, self.sliders_positions, self.b_min, self.b_max)
+        self.dt = util.fit(self.dt_slider.value(), 0, self.sliders_positions, self.dt_min, self.dt_max)
 
-        lorenz(self.p, self.s, self.r, self.b, self.steps, self.dt)
+        lorenz.lorenz(self.p, self.s, self.r, self.b, self.steps, self.dt)
 
-        self.main_scatter_plot.setData(pos=self.p, size=np.ones(self.p.shape[0])*0.3, color=self.color, pxMode=False)
+        # self.main_scatter_plot.setData(pos=self.p, size=np.ones(self.p.shape[0])*0.3, color=self.color, pxMode=False)
+        self.main_scatter_plot.setData(pos=self.p, size=0.3, color=self.color, pxMode=False)
+
         self.xcurve.setData(self.p[:, 0], connect='finite')
         self.ycurve.setData(self.p[:, 1], connect='finite')
         self.zcurve.setData(self.p[:, 2], connect='finite')
 
-        print(f'min = {np.min(self.p)} max = {np.max(self.p)}')
+        print(self.steps, self.dt, f'min = {np.min(self.p)} max = {np.max(self.p)}')
         # self.xplot.setYRange(np.min(self.p[:, 0]), np.max(self.p[:, 0]))
         # self.yplot.setYRange(np.min(self.p[:, 1]), np.max(self.p[:, 0]))
         # self.zplot.setYRange(np.min(self.p[:, 2]), np.max(self.p[:, 1]))
 
-        print(self.steps)
+        # print(self.steps)
         self.steps_label.setText(f'steps {self.steps}')
         self.dt_label.setText(f'dt {self.dt}')
         self.s_label.setText(f'σ {self.s}')
